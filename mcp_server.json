@@ -1,0 +1,124 @@
+{
+  "name": "GlobalHaven MCP Server",
+  "description": "Community Resource Sharing Platform MCP Integration",
+  "version": "1.0.0",
+  "base_url": "https://35f32e7d-5490-42ba-9e10-affcd9163446.preview.emergentagent.com/api",
+  "authentication": {
+    "type": "bearer",
+    "token": "mcp-globalhaven-2025"
+  },
+  "endpoints": {
+    "search_resources": {
+      "method": "POST",
+      "path": "/mcp/search_resources",
+      "description": "Search for community resources by category, type, and location",
+      "parameters": {
+        "category": {
+          "type": "string",
+          "description": "Resource category (food, water, tools, skills, shelter, medical, other)",
+          "enum": ["food", "water", "tools", "skills", "shelter", "medical", "other"]
+        },
+        "type": {
+          "type": "string", 
+          "description": "Resource type (available or needed)",
+          "enum": ["available", "needed"]
+        },
+        "lat": {
+          "type": "number",
+          "description": "Latitude for location-based search"
+        },
+        "lng": {
+          "type": "number",
+          "description": "Longitude for location-based search"
+        },
+        "radius": {
+          "type": "number",
+          "description": "Search radius in kilometers (default: 10)",
+          "default": 10
+        }
+      }
+    },
+    "create_resource": {
+      "method": "POST", 
+      "path": "/mcp/create_resource",
+      "description": "Create a new resource posting",
+      "required_parameters": ["user_id", "title", "description", "category", "type"],
+      "parameters": {
+        "user_id": {
+          "type": "string",
+          "description": "ID of the user creating the resource"
+        },
+        "title": {
+          "type": "string",
+          "description": "Resource title"
+        },
+        "description": {
+          "type": "string", 
+          "description": "Detailed description of the resource"
+        },
+        "category": {
+          "type": "string",
+          "description": "Resource category",
+          "enum": ["food", "water", "tools", "skills", "shelter", "medical", "other"]
+        },
+        "type": {
+          "type": "string",
+          "description": "Resource type", 
+          "enum": ["available", "needed"]
+        },
+        "location": {
+          "type": "object",
+          "description": "Geographic coordinates {lat: number, lng: number}"
+        },
+        "address": {
+          "type": "string",
+          "description": "Street address (will be geocoded if location not provided)"
+        },
+        "quantity": {
+          "type": "string",
+          "description": "Amount or quantity available/needed"
+        },
+        "contact_info": {
+          "type": "string",
+          "description": "Contact information for the resource"
+        }
+      }
+    },
+    "get_community_stats": {
+      "method": "POST",
+      "path": "/mcp/get_user_stats", 
+      "description": "Get community statistics and resource counts",
+      "parameters": {}
+    }
+  },
+  "examples": {
+    "search_food_resources": {
+      "description": "Find available food resources within 5km",
+      "request": {
+        "action": "search_resources",
+        "data": {
+          "category": "food",
+          "type": "available",
+          "lat": 40.7128,
+          "lng": -74.0060,
+          "radius": 5
+        }
+      }
+    },
+    "create_skill_offer": {
+      "description": "Offer programming skills to the community",
+      "request": {
+        "action": "create_resource", 
+        "data": {
+          "user_id": "user-123",
+          "title": "Python Programming Tutoring",
+          "description": "Offering free Python programming lessons for beginners",
+          "category": "skills",
+          "type": "available",
+          "location": {"lat": 40.7128, "lng": -74.0060},
+          "contact_info": "email@example.com"
+        }
+      }
+    }
+  }
+}
