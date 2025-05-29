@@ -108,6 +108,186 @@ class MCPRequest(BaseModel):
     action: str
     data: Optional[Dict[str, Any]] = None
 
+# Water Access Module Models
+class WaterSource(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    name: str
+    type: str  # well, spring, tap, river, lake, rainwater, other
+    location: Dict[str, float]  # {"lat": 0.0, "lng": 0.0}
+    address: Optional[str] = None
+    accessibility: str  # public, private, restricted, seasonal
+    quality_status: str = "unknown"  # safe, unsafe, needs_testing, unknown
+    flow_rate: Optional[str] = None  # liters per minute/hour
+    depth: Optional[float] = None  # meters (for wells)
+    treatment_required: bool = False
+    last_tested: Optional[datetime] = None
+    added_by: str  # user_id
+    verified_by: Optional[str] = None  # user_id of verifier
+    community_rating: float = 0.0
+    is_active: bool = True
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+class WaterSourceCreate(BaseModel):
+    name: str
+    type: str
+    location: Dict[str, float]
+    address: Optional[str] = None
+    accessibility: str = "public"
+    quality_status: str = "unknown"
+    flow_rate: Optional[str] = None
+    depth: Optional[float] = None
+    treatment_required: bool = False
+
+class QualityReport(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    water_source_id: str
+    reporter_id: str
+    test_type: str  # visual, taste, laboratory, field_kit, community_feedback
+    ph_level: Optional[float] = None
+    turbidity: Optional[str] = None  # clear, slightly_cloudy, cloudy, very_cloudy
+    color: Optional[str] = None
+    odor: Optional[str] = None
+    taste: Optional[str] = None
+    bacteria_present: Optional[bool] = None
+    chemical_contaminants: Optional[List[str]] = None
+    overall_rating: str  # safe, caution, unsafe
+    notes: Optional[str] = None
+    test_date: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+class QualityReportCreate(BaseModel):
+    water_source_id: str
+    test_type: str
+    ph_level: Optional[float] = None
+    turbidity: Optional[str] = None
+    color: Optional[str] = None
+    odor: Optional[str] = None
+    taste: Optional[str] = None
+    bacteria_present: Optional[bool] = None
+    chemical_contaminants: Optional[List[str]] = None
+    overall_rating: str
+    notes: Optional[str] = None
+
+class InfrastructurePlan(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    title: str
+    description: str
+    plan_type: str  # well_drilling, rainwater_harvesting, pipeline, filtration_system, storage_tank
+    location: Dict[str, float]
+    estimated_cost: Optional[float] = None
+    currency: str = "USD"
+    materials_needed: List[str] = []
+    tools_required: List[str] = []
+    estimated_time: Optional[str] = None  # "2 weeks", "3 months"
+    skill_level: str  # beginner, intermediate, advanced, professional
+    water_yield: Optional[str] = None  # expected output
+    serves_population: Optional[int] = None
+    created_by: str
+    community_approved: bool = False
+    funding_status: str = "planning"  # planning, seeking_funds, funded, in_progress, completed
+    is_active: bool = True
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+class InfrastructurePlanCreate(BaseModel):
+    title: str
+    description: str
+    plan_type: str
+    location: Dict[str, float]
+    estimated_cost: Optional[float] = None
+    currency: str = "USD"
+    materials_needed: List[str] = []
+    tools_required: List[str] = []
+    estimated_time: Optional[str] = None
+    skill_level: str = "beginner"
+    water_yield: Optional[str] = None
+    serves_population: Optional[int] = None
+
+class PurificationGuide(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    title: str
+    description: str
+    method_type: str  # boiling, solar_disinfection, sand_filtration, chlorination, ceramic_filter, uv_treatment
+    local_materials: List[str] = []
+    steps: List[str] = []
+    time_required: Optional[str] = None
+    effectiveness: str  # high, medium, low
+    suitable_for: List[str] = []  # bacteria, viruses, chemicals, sediment
+    region_specific: Optional[str] = None
+    cost_estimate: Optional[str] = None
+    difficulty_level: str = "beginner"  # beginner, intermediate, advanced
+    created_by: str
+    community_rating: float = 0.0
+    usage_count: int = 0
+    is_active: bool = True
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+class PurificationGuideCreate(BaseModel):
+    title: str
+    description: str
+    method_type: str
+    local_materials: List[str] = []
+    steps: List[str] = []
+    time_required: Optional[str] = None
+    effectiveness: str = "medium"
+    suitable_for: List[str] = []
+    region_specific: Optional[str] = None
+    cost_estimate: Optional[str] = None
+    difficulty_level: str = "beginner"
+
+class WaterAlert(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    title: str
+    description: str
+    alert_type: str  # contamination, supply_disruption, infrastructure_failure, quality_concern
+    severity: str  # low, medium, high, critical
+    location: Dict[str, float]
+    radius_km: float = 5.0  # affected area radius
+    water_source_ids: List[str] = []  # affected water sources
+    issued_by: str  # user_id
+    verified: bool = False
+    verified_by: Optional[str] = None
+    active: bool = True
+    expires_at: Optional[datetime] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+class WaterAlertCreate(BaseModel):
+    title: str
+    description: str
+    alert_type: str
+    severity: str
+    location: Dict[str, float]
+    radius_km: float = 5.0
+    water_source_ids: List[str] = []
+    expires_at: Optional[datetime] = None
+
+class WaterUsage(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    user_id: str
+    date: datetime = Field(default_factory=datetime.utcnow)
+    drinking_liters: float = 0.0
+    cooking_liters: float = 0.0
+    cleaning_liters: float = 0.0
+    agriculture_liters: float = 0.0
+    other_liters: float = 0.0
+    total_liters: float = 0.0
+    source_ids: List[str] = []  # water sources used
+    notes: Optional[str] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+class WaterUsageCreate(BaseModel):
+    date: Optional[datetime] = None
+    drinking_liters: float = 0.0
+    cooking_liters: float = 0.0
+    cleaning_liters: float = 0.0
+    agriculture_liters: float = 0.0
+    other_liters: float = 0.0
+    source_ids: List[str] = []
+    notes: Optional[str] = None
+
 # Authentication functions
 def verify_password(plain_password, hashed_password):
     return pwd_context.verify(plain_password, hashed_password)
