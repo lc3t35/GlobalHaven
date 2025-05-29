@@ -1,32 +1,38 @@
 # GlobalHaven Community Resource Hub
 
 ## Overview
+
 GlobalHaven is a mobile-first community resource sharing platform that addresses fundamental human needs across six critical domains: water, food, shelter, safety, health, and economic security.
 
 ## 🌟 Key Features Implemented
 
 ### 1. Community Resource Sharing
+
 - **Resource Posting**: Users can share available resources or post what they need
 - **Smart Search**: Filter by category, type, and location with radius-based searching
 - **Global Mapping**: OpenStreetMap integration with geocoding support
 - **Real-time Updates**: Live resource feed with mobile-optimized interface
 
 ### 2. Mobile-First Design
+
 - **Responsive UI**: Optimized for smartphones and basic devices
 - **Touch-Friendly**: Large buttons and easy navigation
 - **Offline Capability**: Core features work with minimal connectivity
 - **Progressive Enhancement**: Works on low-spec devices
 
 ### 3. MCP Server Integration (LLM Access)
+
 - **Natural Language Interface**: LLMs can interact with the platform
 - **Resource Search**: AI can find resources using natural language queries
 - **Resource Creation**: AI can post resources on behalf of users
 - **Community Stats**: AI can access platform analytics
 
 ## 🚀 Live Demo
+
 **Application URL**: https://35f32e7d-5490-42ba-9e10-affcd9163446.preview.emergentagent.com
 
 ### Quick Test Flow:
+
 1. Visit the home page
 2. Click "Join the Community"
 3. Register with a new account
@@ -36,9 +42,24 @@ GlobalHaven is a mobile-first community resource sharing platform that addresses
 ## 🤖 MCP Integration for LLMs
 
 ### Authentication
+
 ```bash
 Authorization: Bearer mcp-globalhaven-2025
 ```
+
+### Claude integration
+
+Copy mcp/globalhaven-mcp.js to /users/path/to/
+
+Add this configuration to claude_desktop_config.json mcpservers
+
+````json
+"mcpServers": {
+  "globalhaven": {
+      "command": "node",
+      "args": ["/users/path/to/globalhaven-mcp.js"]
+    }
+}
 
 ### Available Endpoints
 
@@ -49,15 +70,16 @@ POST /api/mcp/search_resources
   "action": "search_resources",
   "data": {
     "category": "food",
-    "type": "available", 
+    "type": "available",
     "lat": 40.7128,
     "lng": -74.0060,
     "radius": 10
   }
 }
-```
+````
 
 #### 2. Create Resource
+
 ```bash
 POST /api/mcp/create_resource
 {
@@ -75,6 +97,7 @@ POST /api/mcp/create_resource
 ```
 
 #### 3. Get Community Stats
+
 ```bash
 POST /api/mcp/get_user_stats
 {
@@ -96,12 +119,14 @@ POST /api/mcp/get_user_stats
 ## 🔧 Technical Architecture
 
 ### Frontend
+
 - **React 18** with mobile-first Tailwind CSS
 - **React Leaflet** for OpenStreetMap integration
 - **Axios** for API communication
 - **Responsive design** for all device sizes
 
 ### Backend
+
 - **FastAPI** with async support
 - **MongoDB** with Motor driver
 - **JWT Authentication** with bcrypt
@@ -109,6 +134,7 @@ POST /api/mcp/get_user_stats
 - **CORS enabled** for cross-origin requests
 
 ### Security
+
 - **Bcrypt password hashing**
 - **JWT token authentication**
 - **API key protection** for MCP endpoints
@@ -118,7 +144,7 @@ POST /api/mcp/get_user_stats
 
 1. **🍎 Food**: Surplus food, meals, nutrition resources
 2. **💧 Water**: Clean water sources, purification methods
-3. **🔧 Tools**: Equipment sharing, skill exchanges  
+3. **🔧 Tools**: Equipment sharing, skill exchanges
 4. **🏠 Shelter**: Housing, building materials, designs
 5. **🏥 Medical**: Healthcare resources, first aid
 6. **💡 Skills**: Knowledge sharing, tutoring, services
@@ -152,4 +178,4 @@ The MCP integration makes this accessible to anyone through natural language, de
 
 ---
 
-*Built with ❤️ for global community resilience*
+_Built with ❤️ for global community resilience_
