@@ -1,7 +1,7 @@
 {
   "name": "GlobalHaven MCP Server",
-  "description": "Community Resource Sharing Platform MCP Integration",
-  "version": "1.0.0",
+  "description": "Community Resource Sharing Platform with Water Access Module MCP Integration",
+  "version": "2.0.0",
   "base_url": "https://35f32e7d-5490-42ba-9e10-affcd9163446.preview.emergentagent.com/api",
   "authentication": {
     "type": "bearer",
@@ -35,6 +35,235 @@
           "type": "number",
           "description": "Search radius in kilometers (default: 10)",
           "default": 10
+        }
+      }
+    },
+    "search_water_sources": {
+      "method": "POST",
+      "path": "/mcp/search_water_sources",
+      "description": "Search for water sources with quality reports and accessibility info",
+      "parameters": {
+        "type": {
+          "type": "string",
+          "description": "Water source type",
+          "enum": ["well", "spring", "tap", "river", "lake", "rainwater", "other"]
+        },
+        "accessibility": {
+          "type": "string",
+          "description": "Access level",
+          "enum": ["public", "private", "restricted", "seasonal"]
+        },
+        "quality_status": {
+          "type": "string",
+          "description": "Water quality status",
+          "enum": ["safe", "unsafe", "needs_testing", "unknown"]
+        },
+        "lat": {
+          "type": "number",
+          "description": "Latitude for location-based search"
+        },
+        "lng": {
+          "type": "number",
+          "description": "Longitude for location-based search"
+        },
+        "radius": {
+          "type": "number",
+          "description": "Search radius in kilometers (default: 10)",
+          "default": 10
+        }
+      }
+    },
+    "get_water_alerts": {
+      "method": "POST",
+      "path": "/mcp/get_water_alerts",
+      "description": "Get active water alerts for contamination, supply disruptions, etc.",
+      "parameters": {
+        "alert_type": {
+          "type": "string",
+          "description": "Type of alert",
+          "enum": ["contamination", "supply_disruption", "infrastructure_failure", "quality_concern"]
+        },
+        "severity": {
+          "type": "string",
+          "description": "Alert severity",
+          "enum": ["low", "medium", "high", "critical"]
+        },
+        "lat": {
+          "type": "number",
+          "description": "Latitude to check for local alerts"
+        },
+        "lng": {
+          "type": "number",
+          "description": "Longitude to check for local alerts"
+        }
+      }
+    },
+    "get_purification_guides": {
+      "method": "POST",
+      "path": "/mcp/get_purification_guides",
+      "description": "Get water purification guides using local materials",
+      "parameters": {
+        "method_type": {
+          "type": "string",
+          "description": "Purification method",
+          "enum": ["boiling", "solar_disinfection", "sand_filtration", "chlorination", "ceramic_filter", "uv_treatment"]
+        },
+        "effectiveness": {
+          "type": "string",
+          "description": "Method effectiveness",
+          "enum": ["high", "medium", "low"]
+        },
+        "difficulty_level": {
+          "type": "string",
+          "description": "Implementation difficulty",
+          "enum": ["beginner", "intermediate", "advanced"]
+        }
+      }
+    },
+    "create_water_source": {
+      "method": "POST",
+      "path": "/mcp/create_water_source",
+      "description": "Add a new water source to the community database",
+      "required_parameters": ["user_id", "name", "type", "location"],
+      "parameters": {
+        "user_id": {
+          "type": "string",
+          "description": "ID of the user adding the water source"
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the water source"
+        },
+        "type": {
+          "type": "string",
+          "description": "Type of water source",
+          "enum": ["well", "spring", "tap", "river", "lake", "rainwater", "other"]
+        },
+        "location": {
+          "type": "object",
+          "description": "Geographic coordinates {lat: number, lng: number}"
+        },
+        "address": {
+          "type": "string",
+          "description": "Street address (will be geocoded if location not provided)"
+        },
+        "accessibility": {
+          "type": "string",
+          "description": "Access level",
+          "enum": ["public", "private", "restricted", "seasonal"]
+        },
+        "quality_status": {
+          "type": "string",
+          "description": "Water quality status",
+          "enum": ["safe", "unsafe", "needs_testing", "unknown"]
+        },
+        "flow_rate": {
+          "type": "string",
+          "description": "Water flow rate (e.g., '10 L/min')"
+        },
+        "depth": {
+          "type": "number",
+          "description": "Depth in meters (for wells)"
+        },
+        "treatment_required": {
+          "type": "boolean",
+          "description": "Whether water requires treatment before use"
+        }
+      }
+    },
+    "create_water_alert": {
+      "method": "POST",
+      "path": "/mcp/create_water_alert",
+      "description": "Create a water alert for contamination or supply issues",
+      "required_parameters": ["user_id", "title", "description", "alert_type", "severity", "location"],
+      "parameters": {
+        "user_id": {
+          "type": "string",
+          "description": "ID of the user creating the alert"
+        },
+        "title": {
+          "type": "string",
+          "description": "Alert title"
+        },
+        "description": {
+          "type": "string",
+          "description": "Detailed description of the issue"
+        },
+        "alert_type": {
+          "type": "string",
+          "description": "Type of alert",
+          "enum": ["contamination", "supply_disruption", "infrastructure_failure", "quality_concern"]
+        },
+        "severity": {
+          "type": "string",
+          "description": "Alert severity",
+          "enum": ["low", "medium", "high", "critical"]
+        },
+        "location": {
+          "type": "object",
+          "description": "Geographic coordinates {lat: number, lng: number}"
+        },
+        "radius_km": {
+          "type": "number",
+          "description": "Affected area radius in kilometers (default: 5)",
+          "default": 5
+        },
+        "water_source_ids": {
+          "type": "array",
+          "description": "List of affected water source IDs"
+        },
+        "expires_at": {
+          "type": "string",
+          "description": "Alert expiration date (ISO format)"
+        }
+      }
+    },
+    "log_water_usage": {
+      "method": "POST",
+      "path": "/mcp/log_water_usage",
+      "description": "Log daily water usage for conservation tracking",
+      "required_parameters": ["user_id"],
+      "parameters": {
+        "user_id": {
+          "type": "string",
+          "description": "ID of the user logging usage"
+        },
+        "drinking_liters": {
+          "type": "number",
+          "description": "Liters used for drinking",
+          "default": 0
+        },
+        "cooking_liters": {
+          "type": "number",
+          "description": "Liters used for cooking",
+          "default": 0
+        },
+        "cleaning_liters": {
+          "type": "number",
+          "description": "Liters used for cleaning",
+          "default": 0
+        },
+        "agriculture_liters": {
+          "type": "number",
+          "description": "Liters used for agriculture",
+          "default": 0
+        },
+        "other_liters": {
+          "type": "number",
+          "description": "Liters used for other purposes",
+          "default": 0
+        },
+        "date": {
+          "type": "string",
+          "description": "Date for usage (ISO format, defaults to today)"
+        },
+        "source_ids": {
+          "type": "array",
+          "description": "List of water source IDs used"
+        },
+        "notes": {
+          "type": "string",
+          "description": "Additional notes about usage"
         }
       }
     },
@@ -87,36 +316,86 @@
     "get_community_stats": {
       "method": "POST",
       "path": "/mcp/get_user_stats", 
-      "description": "Get community statistics and resource counts",
+      "description": "Get community statistics including water module data",
       "parameters": {}
     }
   },
   "examples": {
-    "search_food_resources": {
-      "description": "Find available food resources within 5km",
+    "search_safe_water_sources": {
+      "description": "Find safe water sources within 10km",
       "request": {
-        "action": "search_resources",
+        "action": "search_water_sources",
         "data": {
-          "category": "food",
-          "type": "available",
+          "quality_status": "safe",
+          "accessibility": "public",
           "lat": 40.7128,
           "lng": -74.0060,
-          "radius": 5
+          "radius": 10
         }
       }
     },
-    "create_skill_offer": {
-      "description": "Offer programming skills to the community",
+    "check_water_alerts": {
+      "description": "Check for water contamination alerts in area",
       "request": {
-        "action": "create_resource", 
+        "action": "get_water_alerts",
+        "data": {
+          "alert_type": "contamination",
+          "lat": 40.7128,
+          "lng": -74.0060
+        }
+      }
+    },
+    "find_purification_guides": {
+      "description": "Get beginner-friendly water purification methods",
+      "request": {
+        "action": "get_purification_guides",
+        "data": {
+          "difficulty_level": "beginner",
+          "effectiveness": "high"
+        }
+      }
+    },
+    "add_community_well": {
+      "description": "Add a new community well to the database",
+      "request": {
+        "action": "create_water_source",
         "data": {
           "user_id": "user-123",
-          "title": "Python Programming Tutoring",
-          "description": "Offering free Python programming lessons for beginners",
-          "category": "skills",
-          "type": "available",
+          "name": "Community Well #1",
+          "type": "well",
           "location": {"lat": 40.7128, "lng": -74.0060},
-          "contact_info": "email@example.com"
+          "accessibility": "public",
+          "quality_status": "safe",
+          "depth": 15,
+          "flow_rate": "20 L/min"
+        }
+      }
+    },
+    "report_contamination": {
+      "description": "Report water contamination in area",
+      "request": {
+        "action": "create_water_alert",
+        "data": {
+          "user_id": "user-123",
+          "title": "Water Contamination Detected",
+          "description": "Bacteria found in local water supply",
+          "alert_type": "contamination",
+          "severity": "high",
+          "location": {"lat": 40.7128, "lng": -74.0060},
+          "radius_km": 2
+        }
+      }
+    },
+    "track_daily_usage": {
+      "description": "Log daily water consumption",
+      "request": {
+        "action": "log_water_usage",
+        "data": {
+          "user_id": "user-123",
+          "drinking_liters": 3,
+          "cooking_liters": 5,
+          "cleaning_liters": 15,
+          "notes": "Reduced shower time today"
         }
       }
     }
