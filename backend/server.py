@@ -578,6 +578,342 @@ async def geocode_endpoint(address: str, current_user: User = Depends(get_curren
         raise HTTPException(status_code=404, detail="Address not found")
     return {"location": location}
 
+# Water Access Module Routes
+
+# Water Sources
+@api_router.post("/water/sources", response_model=WaterSource)
+async def create_water_source(source_data: WaterSourceCreate, current_user: User = Depends(get_current_user)):
+    source_dict = source_data.dict()
+    source_dict["added_by"] = current_user.id
+    source = WaterSource(**source_dict)
+    
+    await db.water_sources.insert_one(source.dict())
+    return source
+
+@api_router.get("/water/sources", response_model=List[WaterSource])
+async def get_water_sources(
+    type: Optional[str] = None,
+    accessibility: Optional[str] = None,
+    quality_status: Optional[str] = None,
+    lat: Optional[float] = None,
+    lng: Optional[float] = None,
+    radius: Optional[float] = 10.0,
+    current_user: User = Depends(get_current_user)
+):
+    filter_query = {"is_active": True}
+    
+    if type:
+        filter_query["type"] = type
+    if accessibility:
+        filter_query["accessibility"] = accessibility
+    if quality_status:
+        filter_query["quality_status"] = quality_status
+    
+    sources = await db.water_sources.find(filter_query).to_list(1000)
+    
+    # Filter by location if provided
+    if lat is not None and lng is not None:
+        filtered_sources = []
+        for source in sources:
+            source_lat = source["location"]["lat"]
+            source_lng = source["location"]["lng"]
+            distance = ((lat - source_lat) ** 2 + (lng - source_lng) ** 2) ** 0.5 * 111
+            if distance <= radius:
+                filtered_sources.append(source)
+        sources = filtered_sources
+    
+    return [WaterSource(**source) for source in sources]
+
+@api_router.get("/water/sources/{source_id}", response_model=WaterSource)
+async def get_water_source(source_id: str, current_user: User = Depends(get_current_user)):
+    source = await db.water_sources.find_one({"id": source_id, "is_active": True})
+    if not source:
+        raise HTTPException(status_code=404, detail="Water source not found")
+    return WaterSource(**source)
+
+@api_router.put("/water/sources/{source_id}", response_model=WaterSource)
+async def update_water_source(source_id: str, source_data: WaterSourceCreate, current_user: User = Depends(get_current_user)):
+    source = await db.water_sources.find_one({"id": source_id, "added_by": current_user.id})
+    if not source:
+        raise HTTPException(status_code=404, detail="Water source not found or not owned by user")
+    
+    update_data = source_data.dict()
+    update_data["updated_at"] = datetime.utcnow()
+    
+    await db.water_sources.update_one({"id": source_id}, {"$set": update_data})
+    updated_source = await db.water_sources.find_one({"id": source_id})
+    return WaterSource(**updated_source)
+
+# Quality Reports
+@api_router.post("/water/quality-reports", response_model=QualityReport)
+async def create_quality_report(report_data: QualityReportCreate, current_user: User = Depends(get_current_user)):
+    # Verify water source exists
+    source = await db.water_sources.find_one({"id": report_data.water_source_id, "is_active": True})
+    if not source:
+        raise HTTPException(status_code=404, detail="Water source not found")
+    
+    report_dict = report_data.dict()
+    report_dict["reporter_id"] = current_user.id
+    report = QualityReport(**report_dict)
+    
+    await db.quality_reports.insert_one(report.dict())
+    
+    # Update water source quality status based on latest report
+    await db.water_sources.update_one(
+        {"id": report_data.water_source_id},
+        {"$set": {"quality_status": report_data.overall_rating, "last_tested": datetime.utcnow()}}
+    )
+    
+    return report
+
+@api_router.get("/water/quality-reports", response_model=List[QualityReport])
+async def get_quality_reports(
+    water_source_id: Optional[str] = None,
+    current_user: User = Depends(get_current_user)
+):
+    filter_query = {}
+    if water_source_id:
+        filter_query["water_source_id"] = water_source_id
+    
+    reports = await db.quality_reports.find(filter_query).sort("test_date", -1).to_list(1000)
+    return [QualityReport(**report) for report in reports]
+
+# Infrastructure Plans
+@api_router.post("/water/infrastructure-plans", response_model=InfrastructurePlan)
+async def create_infrastructure_plan(plan_data: InfrastructurePlanCreate, current_user: User = Depends(get_current_user)):
+    plan_dict = plan_data.dict()
+    plan_dict["created_by"] = current_user.id
+    plan = InfrastructurePlan(**plan_dict)
+    
+    await db.infrastructure_plans.insert_one(plan.dict())
+    return plan
+
+@api_router.get("/water/infrastructure-plans", response_model=List[InfrastructurePlan])
+async def get_infrastructure_plans(
+    plan_type: Optional[str] = None,
+    funding_status: Optional[str] = None,
+    lat: Optional[float] = None,
+    lng: Optional[float] = None,
+    radius: Optional[float] = 50.0,
+    current_user: User = Depends(get_current_user)
+):
+    filter_query = {"is_active": True}
+    
+    if plan_type:
+        filter_query["plan_type"] = plan_type
+    if funding_status:
+        filter_query["funding_status"] = funding_status
+    
+    plans = await db.infrastructure_plans.find(filter_query).to_list(1000)
+    
+    # Filter by location if provided
+    if lat is not None and lng is not None:
+        filtered_plans = []
+        for plan in plans:
+            plan_lat = plan["location"]["lat"]
+            plan_lng = plan["location"]["lng"]
+            distance = ((lat - plan_lat) ** 2 + (lng - plan_lng) ** 2) ** 0.5 * 111
+            if distance <= radius:
+                filtered_plans.append(plan)
+        plans = filtered_plans
+    
+    return [InfrastructurePlan(**plan) for plan in plans]
+
+# Purification Guides
+@api_router.post("/water/purification-guides", response_model=PurificationGuide)
+async def create_purification_guide(guide_data: PurificationGuideCreate, current_user: User = Depends(get_current_user)):
+    guide_dict = guide_data.dict()
+    guide_dict["created_by"] = current_user.id
+    guide = PurificationGuide(**guide_dict)
+    
+    await db.purification_guides.insert_one(guide.dict())
+    return guide
+
+@api_router.get("/water/purification-guides", response_model=List[PurificationGuide])
+async def get_purification_guides(
+    method_type: Optional[str] = None,
+    effectiveness: Optional[str] = None,
+    difficulty_level: Optional[str] = None,
+    current_user: User = Depends(get_current_user)
+):
+    filter_query = {"is_active": True}
+    
+    if method_type:
+        filter_query["method_type"] = method_type
+    if effectiveness:
+        filter_query["effectiveness"] = effectiveness
+    if difficulty_level:
+        filter_query["difficulty_level"] = difficulty_level
+    
+    guides = await db.purification_guides.find(filter_query).sort("community_rating", -1).to_list(1000)
+    return [PurificationGuide(**guide) for guide in guides]
+
+@api_router.get("/water/purification-guides/{guide_id}", response_model=PurificationGuide)
+async def get_purification_guide(guide_id: str, current_user: User = Depends(get_current_user)):
+    guide = await db.purification_guides.find_one({"id": guide_id, "is_active": True})
+    if not guide:
+        raise HTTPException(status_code=404, detail="Purification guide not found")
+    
+    # Increment usage count
+    await db.purification_guides.update_one({"id": guide_id}, {"$inc": {"usage_count": 1}})
+    
+    return PurificationGuide(**guide)
+
+# Water Alerts
+@api_router.post("/water/alerts", response_model=WaterAlert)
+async def create_water_alert(alert_data: WaterAlertCreate, current_user: User = Depends(get_current_user)):
+    alert_dict = alert_data.dict()
+    alert_dict["issued_by"] = current_user.id
+    alert = WaterAlert(**alert_dict)
+    
+    await db.water_alerts.insert_one(alert.dict())
+    return alert
+
+@api_router.get("/water/alerts", response_model=List[WaterAlert])
+async def get_water_alerts(
+    alert_type: Optional[str] = None,
+    severity: Optional[str] = None,
+    active_only: bool = True,
+    lat: Optional[float] = None,
+    lng: Optional[float] = None,
+    current_user: User = Depends(get_current_user)
+):
+    filter_query = {}
+    
+    if active_only:
+        filter_query["active"] = True
+        # Also filter out expired alerts
+        filter_query["$or"] = [
+            {"expires_at": {"$gte": datetime.utcnow()}},
+            {"expires_at": None}
+        ]
+    
+    if alert_type:
+        filter_query["alert_type"] = alert_type
+    if severity:
+        filter_query["severity"] = severity
+    
+    alerts = await db.water_alerts.find(filter_query).sort("created_at", -1).to_list(1000)
+    
+    # Filter by user location if provided
+    if lat is not None and lng is not None:
+        filtered_alerts = []
+        for alert in alerts:
+            alert_lat = alert["location"]["lat"]
+            alert_lng = alert["location"]["lng"]
+            distance = ((lat - alert_lat) ** 2 + (lng - alert_lng) ** 2) ** 0.5 * 111
+            if distance <= alert["radius_km"]:
+                filtered_alerts.append(alert)
+        alerts = filtered_alerts
+    
+    return [WaterAlert(**alert) for alert in alerts]
+
+@api_router.put("/water/alerts/{alert_id}/verify")
+async def verify_water_alert(alert_id: str, current_user: User = Depends(get_current_user)):
+    alert = await db.water_alerts.find_one({"id": alert_id})
+    if not alert:
+        raise HTTPException(status_code=404, detail="Alert not found")
+    
+    await db.water_alerts.update_one(
+        {"id": alert_id},
+        {"$set": {"verified": True, "verified_by": current_user.id, "updated_at": datetime.utcnow()}}
+    )
+    return {"message": "Alert verified successfully"}
+
+# Water Usage Tracking
+@api_router.post("/water/usage", response_model=WaterUsage)
+async def log_water_usage(usage_data: WaterUsageCreate, current_user: User = Depends(get_current_user)):
+    usage_dict = usage_data.dict()
+    usage_dict["user_id"] = current_user.id
+    
+    if not usage_dict["date"]:
+        usage_dict["date"] = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    
+    # Calculate total
+    total = (usage_dict["drinking_liters"] + usage_dict["cooking_liters"] + 
+             usage_dict["cleaning_liters"] + usage_dict["agriculture_liters"] + 
+             usage_dict["other_liters"])
+    usage_dict["total_liters"] = total
+    
+    usage = WaterUsage(**usage_dict)
+    
+    # Check if usage already exists for this date, update if so
+    existing = await db.water_usage.find_one({
+        "user_id": current_user.id,
+        "date": usage_dict["date"]
+    })
+    
+    if existing:
+        await db.water_usage.update_one(
+            {"id": existing["id"]},
+            {"$set": usage_dict}
+        )
+        return WaterUsage(**{**existing, **usage_dict})
+    else:
+        await db.water_usage.insert_one(usage.dict())
+        return usage
+
+@api_router.get("/water/usage", response_model=List[WaterUsage])
+async def get_water_usage(
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    current_user: User = Depends(get_current_user)
+):
+    filter_query = {"user_id": current_user.id}
+    
+    if start_date:
+        filter_query["date"] = {"$gte": datetime.fromisoformat(start_date)}
+    if end_date:
+        if "date" in filter_query:
+            filter_query["date"]["$lte"] = datetime.fromisoformat(end_date)
+        else:
+            filter_query["date"] = {"$lte": datetime.fromisoformat(end_date)}
+    
+    usage_records = await db.water_usage.find(filter_query).sort("date", -1).to_list(1000)
+    return [WaterUsage(**usage) for usage in usage_records]
+
+@api_router.get("/water/usage/stats")
+async def get_water_usage_stats(current_user: User = Depends(get_current_user)):
+    # Personal stats
+    personal_usage = await db.water_usage.find({"user_id": current_user.id}).to_list(1000)
+    
+    if not personal_usage:
+        return {"personal": {}, "community": {}}
+    
+    # Calculate personal averages
+    total_days = len(personal_usage)
+    total_consumption = sum(usage["total_liters"] for usage in personal_usage)
+    avg_daily = total_consumption / total_days if total_days > 0 else 0
+    
+    # Category breakdown
+    categories = {
+        "drinking": sum(usage["drinking_liters"] for usage in personal_usage) / total_days,
+        "cooking": sum(usage["cooking_liters"] for usage in personal_usage) / total_days,
+        "cleaning": sum(usage["cleaning_liters"] for usage in personal_usage) / total_days,
+        "agriculture": sum(usage["agriculture_liters"] for usage in personal_usage) / total_days,
+        "other": sum(usage["other_liters"] for usage in personal_usage) / total_days
+    }
+    
+    # Community stats (anonymized)
+    all_usage = await db.water_usage.find({}).to_list(10000)
+    community_total = sum(usage["total_liters"] for usage in all_usage)
+    community_users = len(set(usage["user_id"] for usage in all_usage))
+    community_avg = community_total / len(all_usage) if all_usage else 0
+    
+    return {
+        "personal": {
+            "daily_average": round(avg_daily, 2),
+            "total_days_logged": total_days,
+            "total_consumption": round(total_consumption, 2),
+            "category_averages": {k: round(v, 2) for k, v in categories.items()}
+        },
+        "community": {
+            "average_daily_per_person": round(community_avg, 2),
+            "total_users_tracking": community_users,
+            "total_community_consumption": round(community_total, 2)
+        }
+    }
+
 # Include the router in the main app
 app.include_router(api_router)
 
