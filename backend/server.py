@@ -513,6 +513,197 @@ async def mcp_search_resources(
     
     return {"resources": [Resource(**resource).dict() for resource in resources]}
 
+@api_router.post("/mcp/search_water_sources")
+async def mcp_search_water_sources(
+    request: MCPRequest,
+    api_key_valid: bool = Depends(verify_mcp_api_key)
+):
+    """Search water sources via MCP"""
+    data = request.data or {}
+    
+    filter_query = {"is_active": True}
+    if data.get("type"):
+        filter_query["type"] = data["type"]
+    if data.get("accessibility"):
+        filter_query["accessibility"] = data["accessibility"]
+    if data.get("quality_status"):
+        filter_query["quality_status"] = data["quality_status"]
+    
+    sources = await db.water_sources.find(filter_query).to_list(100)
+    
+    # Location filtering if provided
+    if data.get("lat") and data.get("lng"):
+        lat, lng = data["lat"], data["lng"]
+        radius = data.get("radius", 10.0)
+        
+        filtered_sources = []
+        for source in sources:
+            source_lat = source["location"]["lat"]
+            source_lng = source["location"]["lng"]
+            distance = ((lat - source_lat) ** 2 + (lng - source_lng) ** 2) ** 0.5 * 111
+            if distance <= radius:
+                filtered_sources.append(source)
+        sources = filtered_sources
+    
+    return {"water_sources": [WaterSource(**source).dict() for source in sources]}
+
+@api_router.post("/mcp/get_water_alerts")
+async def mcp_get_water_alerts(
+    request: MCPRequest,
+    api_key_valid: bool = Depends(verify_mcp_api_key)
+):
+    """Get water alerts via MCP"""
+    data = request.data or {}
+    
+    filter_query = {"active": True}
+    if data.get("alert_type"):
+        filter_query["alert_type"] = data["alert_type"]
+    if data.get("severity"):
+        filter_query["severity"] = data["severity"]
+    
+    # Filter out expired alerts
+    filter_query["$or"] = [
+        {"expires_at": {"$gte": datetime.utcnow()}},
+        {"expires_at": None}
+    ]
+    
+    alerts = await db.water_alerts.find(filter_query).sort("created_at", -1).to_list(50)
+    
+    # Location filtering if provided
+    if data.get("lat") and data.get("lng"):
+        lat, lng = data["lat"], data["lng"]
+        
+        filtered_alerts = []
+        for alert in alerts:
+            alert_lat = alert["location"]["lat"]
+            alert_lng = alert["location"]["lng"]
+            distance = ((lat - alert_lat) ** 2 + (lng - alert_lng) ** 2) ** 0.5 * 111
+            if distance <= alert["radius_km"]:
+                filtered_alerts.append(alert)
+        alerts = filtered_alerts
+    
+    return {"water_alerts": [WaterAlert(**alert).dict() for alert in alerts]}
+
+@api_router.post("/mcp/get_purification_guides")
+async def mcp_get_purification_guides(
+    request: MCPRequest,
+    api_key_valid: bool = Depends(verify_mcp_api_key)
+):
+    """Get purification guides via MCP"""
+    data = request.data or {}
+    
+    filter_query = {"is_active": True}
+    if data.get("method_type"):
+        filter_query["method_type"] = data["method_type"]
+    if data.get("effectiveness"):
+        filter_query["effectiveness"] = data["effectiveness"]
+    if data.get("difficulty_level"):
+        filter_query["difficulty_level"] = data["difficulty_level"]
+    
+    guides = await db.purification_guides.find(filter_query).sort("community_rating", -1).to_list(50)
+    
+    return {"purification_guides": [PurificationGuide(**guide).dict() for guide in guides]}
+
+@api_router.post("/mcp/create_water_source")
+async def mcp_create_water_source(
+    request: MCPRequest,
+    api_key_valid: bool = Depends(verify_mcp_api_key)
+):
+    """Create water source via MCP"""
+    data = request.data
+    if not data or not data.get("user_id"):
+        raise HTTPException(status_code=400, detail="user_id required in data")
+    
+    # Verify user exists
+    user = await db.users.find_one({"id": data["user_id"]})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Geocode address if provided and no location
+    if data.get("address") and not data.get("location"):
+        location = await geocode_address(data["address"])
+        if location:
+            data["location"] = location
+    
+    source_data = WaterSourceCreate(**data)
+    source_dict = source_data.dict()
+    source_dict["added_by"] = data["user_id"]
+    source = WaterSource(**source_dict)
+    
+    await db.water_sources.insert_one(source.dict())
+    return {"water_source": source.dict()}
+
+@api_router.post("/mcp/create_water_alert")
+async def mcp_create_water_alert(
+    request: MCPRequest,
+    api_key_valid: bool = Depends(verify_mcp_api_key)
+):
+    """Create water alert via MCP"""
+    data = request.data
+    if not data or not data.get("user_id"):
+        raise HTTPException(status_code=400, detail="user_id required in data")
+    
+    # Verify user exists
+    user = await db.users.find_one({"id": data["user_id"]})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    alert_data = WaterAlertCreate(**data)
+    alert_dict = alert_data.dict()
+    alert_dict["issued_by"] = data["user_id"]
+    alert = WaterAlert(**alert_dict)
+    
+    await db.water_alerts.insert_one(alert.dict())
+    return {"water_alert": alert.dict()}
+
+@api_router.post("/mcp/log_water_usage")
+async def mcp_log_water_usage(
+    request: MCPRequest,
+    api_key_valid: bool = Depends(verify_mcp_api_key)
+):
+    """Log water usage via MCP"""
+    data = request.data
+    if not data or not data.get("user_id"):
+        raise HTTPException(status_code=400, detail="user_id required in data")
+    
+    # Verify user exists
+    user = await db.users.find_one({"id": data["user_id"]})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    usage_data = WaterUsageCreate(**{k: v for k, v in data.items() if k != "user_id"})
+    usage_dict = usage_data.dict()
+    usage_dict["user_id"] = data["user_id"]
+    
+    if not usage_dict["date"]:
+        usage_dict["date"] = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    
+    # Calculate total
+    total = (usage_dict["drinking_liters"] + usage_dict["cooking_liters"] + 
+             usage_dict["cleaning_liters"] + usage_dict["agriculture_liters"] + 
+             usage_dict["other_liters"])
+    usage_dict["total_liters"] = total
+    
+    usage = WaterUsage(**usage_dict)
+    
+    # Check if usage already exists for this date, update if so
+    existing = await db.water_usage.find_one({
+        "user_id": data["user_id"],
+        "date": usage_dict["date"]
+    })
+    
+    if existing:
+        await db.water_usage.update_one(
+            {"id": existing["id"]},
+            {"$set": usage_dict}
+        )
+        result_usage = WaterUsage(**{**existing, **usage_dict})
+    else:
+        await db.water_usage.insert_one(usage.dict())
+        result_usage = usage
+    
+    return {"water_usage": result_usage.dict()}
+
 @api_router.post("/mcp/create_resource")
 async def mcp_create_resource(
     request: MCPRequest,
@@ -553,6 +744,13 @@ async def mcp_get_user_stats(
     active_resources = await db.resources.count_documents({"is_active": True, "type": "available"})
     needed_resources = await db.resources.count_documents({"is_active": True, "type": "needed"})
     
+    # Water-specific stats
+    total_water_sources = await db.water_sources.count_documents({"is_active": True})
+    safe_water_sources = await db.water_sources.count_documents({"is_active": True, "quality_status": "safe"})
+    active_alerts = await db.water_alerts.count_documents({"active": True})
+    total_purification_guides = await db.purification_guides.count_documents({"is_active": True})
+    users_tracking_water = await db.water_usage.distinct("user_id")
+    
     # Resources by category
     categories = ["food", "water", "tools", "skills", "shelter", "medical", "other"]
     category_stats = {}
@@ -566,7 +764,14 @@ async def mcp_get_user_stats(
             "total_resources": total_resources,
             "available_resources": active_resources,
             "needed_resources": needed_resources,
-            "categories": category_stats
+            "categories": category_stats,
+            "water_module": {
+                "total_water_sources": total_water_sources,
+                "safe_water_sources": safe_water_sources,
+                "active_water_alerts": active_alerts,
+                "purification_guides": total_purification_guides,
+                "users_tracking_usage": len(users_tracking_water)
+            }
         }
     }
 
