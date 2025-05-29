@@ -401,6 +401,14 @@ async def geocode_endpoint(address: str, current_user: User = Depends(get_curren
 # Include the router in the main app
 app.include_router(api_router)
 
+@app.get("/")
+async def root():
+    return {"message": "GlobalHaven API is running"}
+
+@api_router.get("/")
+async def api_root():
+    return {"message": "GlobalHaven API v1.0", "status": "active"}
+
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
